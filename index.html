@@ -1,0 +1,80 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+// 🔐 TU WIFI
+const char* ssid = "Servomecanismos";
+const char* password = "123456789";
+
+// 🔑 TU TOKEN (el que me diste)
+const char* token = "11cfe7e5-0dcf-4345-b739-f60b7ed76f3e";
+
+// 📡 Pines del sensor ultrasónico
+const int trigPin = 5;
+const int echoPin = 18;
+
+long duration;
+float distancia;
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  WiFi.begin(ssid, password);
+
+  Serial.print("Conectando...");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nConectado al WiFi");
+}
+
+void loop() {
+  distancia = medirDistancia();
+
+  Serial.print("Distancia: ");
+  Serial.println(distancia);
+
+  enviarDato(distancia);
+
+  delay(2000); // cada 2 segundos
+}
+
+// 📏 FUNCIÓN PARA MEDIR
+float medirDistancia() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duration = pulseIn(echoPin, HIGH);
+  float d = duration * 0.034 / 2;
+
+  return d;
+}
+
+// ☁️ ENVIAR A TAGOIO
+void enviarDato(float valor) {
+  if (WiFi.status() == WL_CONNECTED) {
+
+    HTTPClient http;
+
+    http.begin("https://api.tago.io/data");
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("Device-Token", token);
+
+    String body = "{\"variable\":\"distancia\",\"value\":" + String(valor) + "}";
+
+    int httpResponseCode = http.POST(body);
+
+    Serial.print("Respuesta: ");
+    Serial.println(httpResponseCode);
+
+    http.end();
+  }
+}
